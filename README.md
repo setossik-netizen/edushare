@@ -1,0 +1,146 @@
+# EduShare
+
+**La bibliothèque scolaire collaborative du monde francophone.**
+
+EduShare rassemble les cours, exercices, devoirs surveillés et examens qui circulent
+aujourd'hui sur WhatsApp, en photocopies ou dans des groupes informels. Chaque ressource est
+classée par **classe**, **matière**, **type** et **année**, et le catalogue est consultable
+sans compte.
+
+Le projet applique une règle simple et équitable : **le donnant-donnant**. Un document
+partagé et validé par un modérateur ouvre l'accès à la lecture intégrale et au téléchargement
+de toute la bibliothèque. Les visiteurs et les inscrits qui n'ont encore rien publié ne voient
+qu'un aperçu de 3 pages.
+
+- 100 % gratuit, sans publicité, sans fonctionnalité payante
+- Open source sous licence MIT
+- Pensé pour le Bénin et l'Afrique de l'Ouest, ouvert à toute la francophonie
+- Architecture qui tient dans les offres gratuites (Supabase + Vercel)
+
+> **Statut : phase 0 terminée.** Les fondations et la page d'accueil sont en place.
+> L'authentification, l'upload, la modération, le catalogue et le lecteur PDF arrivent dans
+> les phases suivantes. Voir la feuille de route ci-dessous.
+
+## Stack
+
+| Besoin | Choix |
+| --- | --- |
+| Frontend + backend | Next.js 16 (App Router), TypeScript, Server Actions |
+| UI | Tailwind CSS v4, shadcn/ui (Base UI), lucide-react |
+| Base, auth, stockage | Supabase (PostgreSQL, Auth, Storage privé) |
+| Hébergement | Vercel |
+| Lecteur PDF (phase 4) | pdf.js via `react-pdf` |
+
+## Démarrage
+
+Prérequis : Node.js 20.9+ et npm.
+
+```bash
+git clone <url-du-depot> edushare
+cd edushare
+npm install
+cp .env.example .env.local   # puis renseigner les clés Supabase
+npm run dev
+```
+
+L'application démarre sur <http://localhost:3000>.
+
+Sans variables Supabase, le catalogue et les pages publiques fonctionnent quand même : le
+client Supabase n'est instancié que lorsque l'authentification est réellement utilisée.
+
+### Variables d'environnement
+
+| Variable | Portée | Rôle |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | client + serveur | URL du projet Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client + serveur | Clé publique, protégée par RLS |
+| `SUPABASE_SERVICE_ROLE_KEY` | serveur uniquement | Scripts de maintenance et seed |
+| `NEXT_PUBLIC_SITE_URL` | client + serveur | URL publique (redirections auth, SEO) |
+
+Ne jamais exposer `SUPABASE_SERVICE_ROLE_KEY` au navigateur ni la committer.
+
+## Scripts
+
+```bash
+npm run dev     # serveur de développement
+npm run build   # build de production
+npm run start   # serveur de production
+npm run lint    # ESLint
+```
+
+## Authentification
+
+L'authentification repose sur Supabase Auth et `@supabase/ssr` (cookies HTTP, RLS).
+Guide de mise en place : [`docs/supabase-setup.md`](docs/supabase-setup.md).
+
+Routes concernées :
+
+- Public : `/connexion`, `/inscription`, `/mot-de-passe-oublie`,
+  `/reinitialiser-mot-de-passe`, `/auth/callback`.
+- Protégées : `/profil`, `/partager`, `/mes-contributions`, `/admin`.
+
+Sans projet Supabase configuré, les pages publiques fonctionnent et les écrans d'auth
+affichent les instructions de configuration.
+
+## Structure du projet
+
+```text
+app/
+  page.tsx                 # accueil : hero, recherche, comment ça marche, matières
+  explorer/                # catalogue et filtres (phase 3)
+  partager/                # formulaire d'upload (phase 2)
+  connexion/ inscription/  # authentification (phase 1)
+  admin/                   # modération (phase 2)
+components/
+  ui/                      # composants shadcn/ui
+  site-header.tsx          # en-tête, navigation, menu mobile
+  site-footer.tsx          # pied de page
+lib/
+  supabase/                # clients navigateur, serveur et proxy
+  taxonomy.ts              # classes, matières, types, limites métier
+docs/
+  cahier-des-charges.md    # spécification fonctionnelle complète
+proxy.ts                   # rafraîchissement de session Supabase (Next.js 16)
+```
+
+### Note sur Next.js 16
+
+Next.js 16 a renommé la convention `middleware.ts` en `proxy.ts`. Le rafraîchissement de
+session Supabase vit dans `lib/supabase/middleware.ts` et est branché par `proxy.ts`.
+
+## Règle métier centrale
+
+```text
+can_download(user) = user.is_authenticated AND user.approved_count >= 1
+```
+
+Elle est **toujours** vérifiée côté serveur, dans une Route Handler ou une Server Action, et
+jamais uniquement dans l'interface. Les fichiers sont stockés dans un bucket privé et servis
+par des URLs signées de 60 secondes.
+
+## Feuille de route
+
+- [x] **Phase 0 — Fondations** : Next.js, Tailwind, shadcn/ui, clients Supabase, layout,
+      en-tête, pied de page, accueil, README, licence MIT, CONTRIBUTING.
+- [x] **Phase 1 — Auth et profils** : inscription, connexion, mot de passe oublié, routes
+      protégées, tables `profiles`, `levels`, `subjects` et seed du système béninois.
+      Guide de mise en place : `docs/supabase-setup.md`.
+- [ ] **Phase 2 — Upload et modération** : formulaire validé par Zod, bucket privé, hash
+      SHA-256, doublons, file de modération, journalisation.
+- [ ] **Phase 3 — Catalogue** : recherche, filtres cumulables synchronisés avec l'URL,
+      tri, pagination, fiche ressource.
+- [ ] **Phase 4 — Lecteur PDF** : aperçu limité à 3 pages, lecture intégrale pour les
+      contributeurs, route de téléchargement avec URL signée.
+- [ ] **Phase 5 — Profil et notifications** : mes contributions, favoris, historique,
+      emails d'approbation et de rejet.
+- [ ] **Phase 6 — Qualité et lancement** : SEO, sitemap, pages légales, tests de la règle
+      du donnant-donnant, responsive, Lighthouse > 85.
+
+## Contribuer
+
+Les contributions sont bienvenues : code, taxonomie, documentation, modération. Lire
+[CONTRIBUTING.md](CONTRIBUTING.md) avant d'ouvrir une pull request.
+
+## Licence
+
+[MIT](LICENSE). Le code, la taxonomie et la documentation sont publics et réutilisables.
