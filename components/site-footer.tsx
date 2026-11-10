@@ -16,6 +16,7 @@ const FOOTER_LINKS = [
       { href: "/a-propos", label: "À propos" },
       { href: "/contribuer", label: "Contribuer au code" },
       { href: "/moderation", label: "Devenir modérateur" },
+      { href: "/contact", label: "Contact" },
     ],
   },
   {

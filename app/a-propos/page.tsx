@@ -19,6 +19,10 @@ const SECTIONS = [
     title: "Contribuer",
     body: "Le projet accueille les contributions de code, de taxonomie, de documentation et de modération. Consultez CONTRIBUTING.md dans le dépôt pour les conventions et la procédure.",
   },
+  {
+    title: "Contact développeur",
+    body: "Pour toute question, suggestion ou signalement concernant la plateforme, vous pouvez contacter le développeur : Setossi Elysee — setossik@gmail.com. Voir aussi la page Contact.",
+  },
 ];
 
 export default function AboutPage() {
