@@ -31,19 +31,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const instant = false;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const resource = await getResource(id);
-  if (!resource) return { title: "Ressource introuvable" };
-  return {
-    title: resource.title,
-    description: resource.description.slice(0, 160),
-  };
-}
+export const metadata: Metadata = { title: "Ressource" };
 
 type ResourcePageParams = { id: string };
 type ResourceSearchParams = { signalement?: string };
