@@ -79,7 +79,7 @@ export default async function AdminPage() {
                     rel="noopener noreferrer"
                     className="text-sm font-medium text-primary hover:underline"
                   >
-                    Ouvrir sur Google Drive
+                    Ouvrir le document
                   </a>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{resource.description}</p>

@@ -15,7 +15,7 @@ qu'un aperçu de 3 pages.
 - 100 % gratuit, sans publicité, sans fonctionnalité payante
 - Open source sous licence MIT
 - Pensé pour le Bénin et l'Afrique de l'Ouest, ouvert à toute la francophonie
-- Architecture qui tient dans les offres gratuites (Supabase + Vercel)
+- Architecture pensée pour rester à faible coût (Supabase + Vercel + Google Drive API)
 
 > **Statut : phase 0 terminée.** Les fondations et la page d'accueil sont en place.
 > L'authentification, l'upload, la modération, le catalogue et le lecteur PDF arrivent dans
@@ -28,7 +28,7 @@ qu'un aperçu de 3 pages.
 | Frontend + backend | Next.js 16 (App Router), TypeScript, Server Actions |
 | UI | Tailwind CSS v4, shadcn/ui (Base UI), lucide-react |
 | Base, auth | Supabase (PostgreSQL, Auth) |
-| Stockage des fichiers | Google Drive (utilisateur, lien public) |
+| Stockage des fichiers | Google Drive centralisé (upload automatisé via API) |
 | Hébergement | Vercel |
 
 ## Démarrage
@@ -55,6 +55,8 @@ client Supabase n'est instancié que lorsque l'authentification est réellement 
 | `NEXT_PUBLIC_SUPABASE_URL` | client + serveur | URL du projet Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client + serveur | Clé publique, protégée par RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | serveur uniquement | Scripts de maintenance et seed |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | serveur uniquement | Clé JSON du compte de service Google (Drive API) |
+| `GOOGLE_DRIVE_FOLDER_ID` | serveur uniquement | ID du dossier Drive de destination |
 | `NEXT_PUBLIC_SITE_URL` | client + serveur | URL publique (redirections auth, SEO) |
 
 Ne jamais exposer `SUPABASE_SERVICE_ROLE_KEY` au navigateur ni la committer.
@@ -115,8 +117,9 @@ can_download(user) = user.is_authenticated AND user.approved_count >= 1
 ```
 
 Elle est **toujours** vérifiée côté serveur, dans une Route Handler ou une Server Action, et
-jamais uniquement dans l'interface. Les fichiers sont hébergés sur Google Drive par les
-utilisateurs ; notre serveur ne stocke que les liens.
+jamais uniquement dans l'interface. Les fichiers sont téléversés automatiquement vers un
+Google Drive centralisé (API Google Drive) ; la base de données stocke l'URL du document et
+ses métadonnées.
 
 ## Feuille de route
 
@@ -125,12 +128,12 @@ utilisateurs ; notre serveur ne stocke que les liens.
 - [x] **Phase 1 — Auth et profils** : inscription, connexion, mot de passe oublié, routes
       protégées, tables `profiles`, `levels`, `subjects` et seed du système béninois.
       Guide de mise en place : `docs/supabase-setup.md`.
-- [x] **Phase 2 — Upload et modération** : formulaire avec lien Google Drive, validation Zod,
-      modération des métadonnées, journalisation.
+- [x] **Phase 2 — Upload et modération** : formulaire d'envoi de fichier (PDF/image),
+      upload automatisé vers Google Drive centralisé, validation Zod, modération, journalisation.
 - [ ] **Phase 3 — Catalogue** : recherche, filtres cumulables synchronisés avec l'URL,
       tri, pagination, fiche ressource.
-- [x] **Phase 4 — Règle donnant-donnant** : lien Google Drive, accès verrouillé pour les
-      non-contributeurs, redirection vers Google Drive pour les contributeurs.
+- [x] **Phase 4 — Règle donnant-donnant** : accès au document réservé aux contributeurs
+      validés, consultation verrouillée pour les non-contributeurs.
 - [x] **Phase 5 — Profil et notifications** : mes contributions, favoris, historique,
       notifications in-app.
 - [x] **Phase 6 — Qualité et lancement** : SEO, sitemap, pages légales, tests, responsive.

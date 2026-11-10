@@ -7,6 +7,7 @@ import type { AuthActionState } from "@/lib/auth-types";
 import { getSiteUrl, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createAdminClient, hasAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isGoogleDriveConfigured, uploadToGoogleDrive } from "@/lib/google-drive";
 import { z } from "zod";
 
 const NOT_CONFIGURED: AuthActionState = {
@@ -14,27 +15,41 @@ const NOT_CONFIGURED: AuthActionState = {
   message: "Supabase n'est pas configuré. Renseignez les variables d'environnement.",
 };
 
+const DRIVE_NOT_CONFIGURED: AuthActionState = {
+  status: "error",
+  message:
+    "Le stockage Google Drive n'est pas configuré. Renseignez GOOGLE_SERVICE_ACCOUNT_JSON et GOOGLE_DRIVE_FOLDER_ID.",
+};
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 Mo
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 const resourceSchema = z.object({
   title: z.string().trim().min(10, "Le titre doit contenir au moins 10 caractères.").max(120),
-  description: z.string().trim().min(30, "La description doit contenir au moins 30 caractères.").max(2000),
+  description: z
+    .string()
+    .trim()
+    .min(30, "La description doit contenir au moins 30 caractères.")
+    .max(2000),
   levelId: z.string().uuid("Classe invalide."),
   subjectId: z.string().uuid("Matière invalide."),
   type: z.enum(["COURS", "EXERCICE", "DEVOIR", "EXAMEN", "CORRIGE"]),
   year: z.coerce.number().int().min(1990).max(2100),
   school: z.string().trim().max(120).optional(),
   language: z.string().trim().max(8).default("fr"),
-  googleDriveUrl: z
-    .string()
-    .trim()
-    .url("Lien Google Drive invalide.")
-    .refine(
-      (url) => /drive\.google\.com|docs\.google\.com/.test(url),
-      "Le lien doit provenir de Google Drive ou Google Docs.",
-    ),
 });
 
 function logError(context: string, message: string) {
   console.error(`[resources] ${context}: ${message}`);
+}
+
+function sanitizeFilename(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120) || "document";
 }
 
 const COOLDOWN_MS = 10 * 60 * 1000;
@@ -45,15 +60,38 @@ export async function createResourceAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   if (!isSupabaseConfigured()) return NOT_CONFIGURED;
+  if (!isGoogleDriveConfigured()) return DRIVE_NOT_CONFIGURED;
 
   const user = await getSessionUser();
   if (!user) {
     return { status: "error", message: "Votre session a expiré. Reconnectez-vous." };
   }
 
-  const parsed = resourceSchema.safeParse(Object.fromEntries(formData));
+  const raw = {
+    title: formData.get("title"),
+    description: formData.get("description"),
+    levelId: formData.get("levelId"),
+    subjectId: formData.get("subjectId"),
+    type: formData.get("type"),
+    year: formData.get("year"),
+    school: formData.get("school"),
+    language: formData.get("language") ?? "fr",
+  };
+  const parsed = resourceSchema.safeParse(raw);
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Veuillez sélectionner un fichier (PDF ou image)." };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return { status: "error", message: "Le fichier est trop volumineux (20 Mo maximum)." };
+  }
+  const mimeType = file.type || "application/octet-stream";
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    return { status: "error", message: "Format non supporté. Utilisez un PDF ou une image (JPG, PNG, WebP)." };
   }
 
   const supabase = await createClient();
@@ -92,6 +130,21 @@ export async function createResourceAction(
     }
   }
 
+  let uploadedUrl: string;
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const filename = sanitizeFilename(file.name || `${parsed.data.title}.pdf`);
+    const uploaded = await uploadToGoogleDrive({ buffer, filename, mimeType });
+    uploadedUrl = uploaded.url;
+  } catch (error) {
+    logError("drive-upload", error instanceof Error ? error.message : String(error));
+    return {
+      status: "error",
+      message:
+        "Impossible d'envoyer le fichier pour le moment. Réessayez dans quelques instants.",
+    };
+  }
+
   const { error: insertError } = await supabase.from("resources").insert({
     author_id: user.id,
     title: parsed.data.title,
@@ -102,7 +155,7 @@ export async function createResourceAction(
     year: parsed.data.year,
     school: parsed.data.school || null,
     language: parsed.data.language,
-    google_drive_url: parsed.data.googleDriveUrl,
+    google_drive_url: uploadedUrl,
     status: "PENDING",
   });
 
@@ -177,9 +230,7 @@ export async function moderateResourceAction(formData: FormData): Promise<void> 
   // Notification à l'auteur.
   if (resource.author_id) {
     const title =
-      decision === "APPROVE"
-        ? "Votre document a été approuvé"
-        : "Votre document a été rejeté";
+      decision === "APPROVE" ? "Votre document a été approuvé" : "Votre document a été rejeté";
     const body =
       decision === "APPROVE"
         ? "Il est maintenant visible par toute la communauté et votre compte est débloqué."

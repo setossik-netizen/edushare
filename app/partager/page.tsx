@@ -9,7 +9,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata: Metadata = {
   title: "Partager un document",
-  description: "Déposez un cours, un exercice ou une annale au format PDF.",
+  description: "Envoyez un cours, un exercice ou une annale (PDF ou image).",
 };
 
 export const instant = false;

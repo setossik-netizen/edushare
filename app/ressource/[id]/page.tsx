@@ -144,8 +144,8 @@ export default async function ResourcePage({
               <CardTitle>Document</CardTitle>
               <CardDescription>
                 {userCanDownload
-                  ? "Le document est hébergé sur Google Drive. Cliquez pour l'ouvrir."
-                  : "Partagez un document pour débloquer l'accès au lien Google Drive."}
+                  ? "Cliquez pour ouvrir le document."
+                  : "Partagez un document validé pour débloquer l'accès aux documents."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -157,14 +157,14 @@ export default async function ResourcePage({
                   className={buttonVariants({ className: "w-full" })}
                 >
                   <FileText aria-hidden="true" />
-                  Ouvrir sur Google Drive
+                  Ouvrir le document
                 </a>
               ) : (
                 <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center">
                   <Lock className="mx-auto size-5 text-muted-foreground" aria-hidden="true" />
                   <p className="mt-2 text-sm font-medium">Contenu verrouillé</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Partagez un document validé pour accéder au lien Google Drive.
+                    Partagez un document validé pour accéder aux documents de la bibliothèque.
                   </p>
                   <Link href="/partager" className={buttonVariants({ className: "mt-3" })}>
                     <Share2 aria-hidden="true" />
@@ -190,7 +190,7 @@ export default async function ResourcePage({
                   className={buttonVariants({ className: "w-full" })}
                 >
                   <FileText aria-hidden="true" />
-                  Ouvrir sur Google Drive
+                  Ouvrir le document
                 </a>
               ) : (
                 <button

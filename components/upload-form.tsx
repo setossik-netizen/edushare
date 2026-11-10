@@ -30,7 +30,7 @@ export function UploadForm({ levels, subjects }: UploadFormProps) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <form action={formAction} className="space-y-6" noValidate>
+    <form action={formAction} encType="multipart/form-data" className="space-y-6" noValidate>
       {state.status !== "idle" && state.message ? (
         <FormAlert tone={state.status === "error" ? "error" : "success"}>
           {state.message}
@@ -64,18 +64,17 @@ export function UploadForm({ levels, subjects }: UploadFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="googleDriveUrl">Lien Google Drive</Label>
+        <Label htmlFor="file">Fichier (PDF ou image)</Label>
         <Input
-          id="googleDriveUrl"
-          name="googleDriveUrl"
-          type="url"
-          placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
+          id="file"
+          name="file"
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
           required
         />
         <p className="text-xs text-muted-foreground">
-          Hébergez votre document sur Google Drive, mettez-le en accès public (« Tous les
-          utilisateurs disposant du lien »), puis collez le lien de partage ici. Aucun
-          fichier n&apos;est stocké sur nos serveurs.
+          Sélectionnez un document depuis votre appareil (PDF, JPG, PNG ou WebP, 20 Mo max).
+          L&apos;envoi et l&apos;hébergement sont gérés automatiquement par la plateforme.
         </p>
       </div>
 
@@ -139,7 +138,7 @@ export function UploadForm({ levels, subjects }: UploadFormProps) {
       </div>
 
       <Button type="submit" className="h-10 w-full" disabled={pending}>
-        {pending ? "Enregistrement…" : "Partager le lien"}
+        {pending ? "Envoi en cours…" : "Envoyer le document"}
       </Button>
     </form>
   );
