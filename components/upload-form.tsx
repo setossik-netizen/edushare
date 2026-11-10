@@ -38,20 +38,6 @@ export function UploadForm({ levels, subjects }: UploadFormProps) {
       ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="file">Fichier PDF</Label>
-        <Input
-          id="file"
-          name="file"
-          type="file"
-          accept="application/pdf,.pdf"
-          required
-        />
-        <p className="text-xs text-muted-foreground">
-          PDF uniquement, 20 Mo maximum, de 1 à 150 pages.
-        </p>
-      </div>
-
-      <div className="space-y-2">
         <Label htmlFor="title">Titre</Label>
         <Input
           id="title"
@@ -75,6 +61,22 @@ export function UploadForm({ levels, subjects }: UploadFormProps) {
           placeholder="Contenu du document, chapitres couverts, niveau de difficulté…"
           required
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="googleDriveUrl">Lien Google Drive</Label>
+        <Input
+          id="googleDriveUrl"
+          name="googleDriveUrl"
+          type="url"
+          placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
+          required
+        />
+        <p className="text-xs text-muted-foreground">
+          Hébergez votre document sur Google Drive, mettez-le en accès public (« Tous les
+          utilisateurs disposant du lien »), puis collez le lien de partage ici. Aucun
+          fichier n&apos;est stocké sur nos serveurs.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -137,7 +139,7 @@ export function UploadForm({ levels, subjects }: UploadFormProps) {
       </div>
 
       <Button type="submit" className="h-10 w-full" disabled={pending}>
-        {pending ? "Envoi en cours…" : "Partager le document"}
+        {pending ? "Enregistrement…" : "Partager le lien"}
       </Button>
     </form>
   );

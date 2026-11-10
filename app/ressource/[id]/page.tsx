@@ -13,7 +13,6 @@ import {
 import { notFound } from "next/navigation";
 
 import { FormAlert } from "@/components/auth/form-alert";
-import { PdfViewerLazy as PdfViewer } from "@/components/pdf-viewer-lazy";
 import { SetupNotice } from "@/components/auth/setup-notice";
 import { ToggleFavoriteButton } from "@/components/toggle-favorite-button";
 import { ReportDialog } from "@/components/report-dialog";
@@ -85,8 +84,6 @@ export default async function ResourcePage({
   }
 
   const userCanDownload = canDownload(user) && resource.status === "APPROVED";
-  const previewMaxPages = userCanDownload ? null : 3;
-  const previewUrl = `/api/preview/${resource.id}`;
   const initials = resource.author.username.slice(0, 2).toUpperCase();
 
   return (
@@ -137,10 +134,6 @@ export default async function ResourcePage({
                   {resource.author.username}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <FileText className="size-4" aria-hidden="true" />
-                  {resource.pageCount} page{resource.pageCount > 1 ? "s" : ""}
-                </span>
-                <span className="flex items-center gap-1.5">
                   <Download className="size-4" aria-hidden="true" />
                   {resource.downloadCount} téléchargement{resource.downloadCount > 1 ? "s" : ""}
                 </span>
@@ -160,30 +153,37 @@ export default async function ResourcePage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Lecteur PDF</CardTitle>
+              <CardTitle>Document</CardTitle>
               <CardDescription>
                 {userCanDownload
-                  ? "Lecture intégrale. Utilisez les contrôles pour naviguer et zoomer."
-                  : "Aperçu limité aux 3 premières pages. Partagez un document pour débloquer l'intégralité."}
+                  ? "Le document est hébergé sur Google Drive. Cliquez pour l'ouvrir."
+                  : "Partagez un document pour débloquer l'accès au lien Google Drive."}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PdfViewer src={previewUrl} maxPages={previewMaxPages} />
-
-              {!userCanDownload && resource.pageCount > 3 ? (
-                <div className="mt-4 rounded-lg border border-dashed bg-muted/30 p-4 text-center">
+              {userCanDownload ? (
+                <a
+                  href={resource.googleDriveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ className: "w-full" })}
+                >
+                  <FileText aria-hidden="true" />
+                  Ouvrir sur Google Drive
+                </a>
+              ) : (
+                <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center">
                   <Lock className="mx-auto size-5 text-muted-foreground" aria-hidden="true" />
                   <p className="mt-2 text-sm font-medium">Contenu verrouillé</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Partagez un document validé pour lire les {resource.pageCount - 3} pages
-                    restantes et télécharger le PDF.
+                    Partagez un document validé pour accéder au lien Google Drive.
                   </p>
                   <Link href="/partager" className={buttonVariants({ className: "mt-3" })}>
                     <Share2 aria-hidden="true" />
                     Partager un document
                   </Link>
                 </div>
-              ) : null}
+              )}
             </CardContent>
           </Card>
         </div>
@@ -196,21 +196,23 @@ export default async function ResourcePage({
             <CardContent className="space-y-3">
               {userCanDownload ? (
                 <a
-                  href={`/api/download/${resource.id}`}
+                  href={resource.googleDriveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={buttonVariants({ className: "w-full" })}
                 >
-                  <Download aria-hidden="true" />
-                  Télécharger le PDF
+                  <FileText aria-hidden="true" />
+                  Ouvrir sur Google Drive
                 </a>
               ) : (
                 <button
                   type="button"
                   disabled
                   className={buttonVariants({ className: "w-full", variant: "secondary" })}
-                  title="Partagez un document pour débloquer le téléchargement"
+                  title="Partagez un document pour débloquer l'accès"
                 >
                   <Lock aria-hidden="true" />
-                  Téléchargement verrouillé
+                  Accès verrouillé
                 </button>
               )}
 

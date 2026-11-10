@@ -216,7 +216,7 @@ async function ExplorerContent({
                   {resource.subject.label} · {resource.level.label}
                 </span>
                 <span className="shrink-0">
-                  {resource.pageCount} p. · {resource.downloadCount} ↓
+                  {resource.downloadCount} ↓
                 </span>
               </div>
             </Link>

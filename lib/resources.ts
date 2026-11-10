@@ -20,8 +20,7 @@ export type ResourceListItem = {
   year: number;
   school: string | null;
   language: string;
-  fileSize: number;
-  pageCount: number;
+  googleDriveUrl: string;
   downloadCount: number;
   viewCount: number;
   status: ResourceStatus;
@@ -34,7 +33,6 @@ export type ResourceListItem = {
 };
 
 export type ResourceDetail = ResourceListItem & {
-  filePath: string;
   moderatedBy: string | null;
   moderatedAt: string | null;
 };
@@ -47,13 +45,11 @@ type RawResource = {
   year: number;
   school: string | null;
   language: string;
-  file_size: number;
-  page_count: number;
+  google_drive_url: string;
   download_count: number;
   view_count: number;
   status: ResourceStatus;
   rejection_reason: string | null;
-  file_path: string;
   moderated_by: string | null;
   moderated_at: string | null;
   created_at: string;
@@ -73,8 +69,7 @@ function mapResource(raw: RawResource): ResourceListItem {
     year: raw.year,
     school: raw.school,
     language: raw.language,
-    fileSize: raw.file_size,
-    pageCount: raw.page_count,
+    googleDriveUrl: raw.google_drive_url,
     downloadCount: raw.download_count,
     viewCount: raw.view_count,
     status: raw.status,
@@ -94,7 +89,6 @@ function mapResource(raw: RawResource): ResourceListItem {
 function mapDetail(raw: RawResource): ResourceDetail {
   return {
     ...mapResource(raw),
-    filePath: raw.file_path,
     moderatedBy: raw.moderated_by,
     moderatedAt: raw.moderated_at,
   };
@@ -130,7 +124,7 @@ export async function listResources(filters: ResourceFilters = {}) {
   let query = supabase
     .from("resources")
     .select(
-      "id,title,description,type,year,school,language,file_size,page_count,download_count,view_count,status,rejection_reason,file_path,moderated_by,moderated_at,created_at,updated_at,author_id,levels(slug,label),subjects(slug,label),profiles:author_id(username,avatar_url)",
+      "id,title,description,type,year,school,language,google_drive_url,download_count,view_count,status,rejection_reason,moderated_by,moderated_at,created_at,updated_at,author_id,levels(slug,label),subjects(slug,label),profiles:author_id(username,avatar_url)",
       { count: "exact" },
     );
 
@@ -182,7 +176,7 @@ export async function getResource(id: string): Promise<ResourceDetail | null> {
   const { data, error } = await supabase
     .from("resources")
     .select(
-      "id,title,description,type,year,school,language,file_size,page_count,download_count,view_count,status,rejection_reason,file_path,moderated_by,moderated_at,created_at,updated_at,author_id,levels(slug,label),subjects(slug,label),profiles:author_id(username,avatar_url)",
+      "id,title,description,type,year,school,language,google_drive_url,download_count,view_count,status,rejection_reason,moderated_by,moderated_at,created_at,updated_at,author_id,levels(slug,label),subjects(slug,label),profiles:author_id(username,avatar_url)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -212,7 +206,7 @@ export async function getFavorites(userId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("favorites")
-    .select("resource_id, created_at, resources(id,title,description,type,year,school,language,file_size,page_count,download_count,view_count,status,rejection_reason,file_path,moderated_by,moderated_at,created_at,updated_at,author_id,levels(slug,label),subjects(slug,label),profiles:author_id(username,avatar_url))")
+    .select("resource_id, created_at, resources(id,title,description,type,year,school,language,google_drive_url,download_count,view_count,status,rejection_reason,moderated_by,moderated_at,created_at,updated_at,author_id,levels(slug,label),subjects(slug,label),profiles:author_id(username,avatar_url))")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 

@@ -1,14 +1,11 @@
 "use server";
 
-import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
-import { refresh, revalidatePath } from "next/cache";
-import { PDFDocument } from "pdf-lib";
 
 import { getSessionUser } from "@/lib/auth";
 import type { AuthActionState } from "@/lib/auth-types";
 import { getSiteUrl, isSupabaseConfigured } from "@/lib/supabase/config";
-import { createAdminClient, hasAdminClient, resourcePath, STORAGE_BUCKET } from "@/lib/supabase/admin";
+import { createAdminClient, hasAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
@@ -26,6 +23,14 @@ const resourceSchema = z.object({
   year: z.coerce.number().int().min(1990).max(2100),
   school: z.string().trim().max(120).optional(),
   language: z.string().trim().max(8).default("fr"),
+  googleDriveUrl: z
+    .string()
+    .trim()
+    .url("Lien Google Drive invalide.")
+    .refine(
+      (url) => /drive\.google\.com|docs\.google\.com/.test(url),
+      "Le lien doit provenir de Google Drive ou Google Docs.",
+    ),
 });
 
 function logError(context: string, message: string) {
@@ -34,7 +39,6 @@ function logError(context: string, message: string) {
 
 const COOLDOWN_MS = 10 * 60 * 1000;
 const MAX_PENDING = 5;
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 export async function createResourceAction(
   _previous: AuthActionState,
@@ -45,17 +49,6 @@ export async function createResourceAction(
   const user = await getSessionUser();
   if (!user) {
     return { status: "error", message: "Votre session a expiré. Reconnectez-vous." };
-  }
-
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "Sélectionnez un fichier PDF." };
-  }
-  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    return { status: "error", message: "Le fichier doit être au format PDF." };
-  }
-  if (file.size > MAX_FILE_BYTES) {
-    return { status: "error", message: "Le fichier dépasse la taille maximale de 20 Mo." };
   }
 
   const parsed = resourceSchema.safeParse(Object.fromEntries(formData));
@@ -99,51 +92,7 @@ export async function createResourceAction(
     }
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const hash = createHash("sha256").update(bytes).digest("hex");
-
-  // Doublon exact.
-  const { data: duplicate } = await supabase
-    .from("resources")
-    .select("id, title")
-    .eq("file_hash", hash)
-    .maybeSingle();
-
-  if (duplicate) {
-    return {
-      status: "error",
-      message: `Ce document existe déjà : « ${duplicate.title} ».`,
-    };
-  }
-
-  // Nombre de pages.
-  let pageCount = 0;
-  try {
-    const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
-    pageCount = pdf.getPageCount();
-  } catch (error) {
-    logError("pdf-parse", String(error));
-    return { status: "error", message: "Le fichier PDF est illisible ou corrompu." };
-  }
-
-  if (pageCount < 1 || pageCount > 150) {
-    return { status: "error", message: "Le document doit contenir entre 1 et 150 pages." };
-  }
-
-  const resourceId = crypto.randomUUID();
-  const path = resourcePath(user.id, resourceId);
-
-  const { error: uploadError } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(path, bytes, { contentType: "application/pdf", upsert: false });
-
-  if (uploadError) {
-    logError("storage-upload", uploadError.message);
-    return { status: "error", message: "L'envoi du fichier a échoué. Réessayez." };
-  }
-
   const { error: insertError } = await supabase.from("resources").insert({
-    id: resourceId,
     author_id: user.id,
     title: parsed.data.title,
     description: parsed.data.description,
@@ -153,17 +102,12 @@ export async function createResourceAction(
     year: parsed.data.year,
     school: parsed.data.school || null,
     language: parsed.data.language,
-    file_path: path,
-    file_size: file.size,
-    page_count: pageCount,
-    file_hash: hash,
+    google_drive_url: parsed.data.googleDriveUrl,
     status: "PENDING",
   });
 
   if (insertError) {
     logError("resource-insert", insertError.message);
-    // Nettoyage du fichier orphelin.
-    await supabase.storage.from(STORAGE_BUCKET).remove([path]).catch(() => undefined);
     return {
       status: "error",
       message:
@@ -193,7 +137,7 @@ export async function moderateResourceAction(formData: FormData): Promise<void> 
 
   const { data: resource } = await supabase
     .from("resources")
-    .select("id, author_id, file_path, status")
+    .select("id, author_id, google_drive_url, status")
     .eq("id", resourceId)
     .maybeSingle();
 
@@ -268,21 +212,6 @@ export async function moderateResourceAction(formData: FormData): Promise<void> 
       }
     }
   }
-
-  // Suppression du fichier rejeté (immédiate pour économiser le stockage).
-  if (decision === "REJECT" && resource.file_path) {
-    try {
-      const admin = createAdminClient();
-      await admin.storage.from(STORAGE_BUCKET).remove([resource.file_path]);
-    } catch (error) {
-      logError("storage-delete", String(error));
-    }
-  }
-
-  revalidatePath("/admin");
-  revalidatePath("/mes-contributions");
-  revalidatePath("/explorer");
-  refresh();
 }
 
 export async function toggleFavoriteAction(formData: FormData): Promise<void> {
@@ -351,6 +280,7 @@ export async function resolveReportAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
   await supabase.from("reports").update({ status: "RESOLVED" }).eq("id", reportId);
 }
+
 export async function markNotificationsReadAction(): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const user = await getSessionUser();

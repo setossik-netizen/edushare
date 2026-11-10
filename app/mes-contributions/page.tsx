@@ -77,7 +77,7 @@ export default async function ContributionsPage() {
                       <CardTitle className="text-lg">{resource.title}</CardTitle>
                       <CardDescription>
                         {resourceTypeLabel(resource.type)} · {resource.subject.label} ·{" "}
-                        {resource.level.label} · {resource.year} · {resource.pageCount} p.
+                        {resource.level.label} · {resource.year}
                       </CardDescription>
                     </div>
                     <Badge variant={meta.variant} className="gap-1">

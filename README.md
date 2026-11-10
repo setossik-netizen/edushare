@@ -27,9 +27,9 @@ qu'un aperçu de 3 pages.
 | --- | --- |
 | Frontend + backend | Next.js 16 (App Router), TypeScript, Server Actions |
 | UI | Tailwind CSS v4, shadcn/ui (Base UI), lucide-react |
-| Base, auth, stockage | Supabase (PostgreSQL, Auth, Storage privé) |
+| Base, auth | Supabase (PostgreSQL, Auth) |
+| Stockage des fichiers | Google Drive (utilisateur, lien public) |
 | Hébergement | Vercel |
-| Lecteur PDF (phase 4) | pdf.js via `react-pdf` |
 
 ## Démarrage
 
@@ -115,8 +115,8 @@ can_download(user) = user.is_authenticated AND user.approved_count >= 1
 ```
 
 Elle est **toujours** vérifiée côté serveur, dans une Route Handler ou une Server Action, et
-jamais uniquement dans l'interface. Les fichiers sont stockés dans un bucket privé et servis
-par des URLs signées de 60 secondes.
+jamais uniquement dans l'interface. Les fichiers sont hébergés sur Google Drive par les
+utilisateurs ; notre serveur ne stocke que les liens.
 
 ## Feuille de route
 
@@ -125,16 +125,15 @@ par des URLs signées de 60 secondes.
 - [x] **Phase 1 — Auth et profils** : inscription, connexion, mot de passe oublié, routes
       protégées, tables `profiles`, `levels`, `subjects` et seed du système béninois.
       Guide de mise en place : `docs/supabase-setup.md`.
-- [ ] **Phase 2 — Upload et modération** : formulaire validé par Zod, bucket privé, hash
-      SHA-256, doublons, file de modération, journalisation.
+- [x] **Phase 2 — Upload et modération** : formulaire avec lien Google Drive, validation Zod,
+      modération des métadonnées, journalisation.
 - [ ] **Phase 3 — Catalogue** : recherche, filtres cumulables synchronisés avec l'URL,
       tri, pagination, fiche ressource.
-- [ ] **Phase 4 — Lecteur PDF** : aperçu limité à 3 pages, lecture intégrale pour les
-      contributeurs, route de téléchargement avec URL signée.
-- [ ] **Phase 5 — Profil et notifications** : mes contributions, favoris, historique,
-      emails d'approbation et de rejet.
-- [ ] **Phase 6 — Qualité et lancement** : SEO, sitemap, pages légales, tests de la règle
-      du donnant-donnant, responsive, Lighthouse > 85.
+- [x] **Phase 4 — Règle donnant-donnant** : lien Google Drive, accès verrouillé pour les
+      non-contributeurs, redirection vers Google Drive pour les contributeurs.
+- [x] **Phase 5 — Profil et notifications** : mes contributions, favoris, historique,
+      notifications in-app.
+- [x] **Phase 6 — Qualité et lancement** : SEO, sitemap, pages légales, tests, responsive.
 
 ## Contribuer
 

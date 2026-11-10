@@ -70,18 +70,17 @@ export default async function AdminPage() {
                     <CardTitle className="text-lg">{resource.title}</CardTitle>
                     <CardDescription>
                       {resource.author.username} · {resource.level.label} · {resource.subject.label} ·{" "}
-                      {resource.type} · {resource.year} · {resource.pageCount} p. ·{" "}
-                      {Math.round(resource.fileSize / 1024)} Ko
+                      {resource.type} · {resource.year}
                     </CardDescription>
                   </div>
-                  <Link
-                    href={`/api/preview/${resource.id}`}
+                  <a
+                    href={resource.googleDriveUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-sm font-medium text-primary hover:underline"
                   >
-                    Ouvrir le PDF
-                  </Link>
+                    Ouvrir sur Google Drive
+                  </a>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{resource.description}</p>
               </CardHeader>
