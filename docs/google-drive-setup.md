@@ -2,55 +2,55 @@
 
 Cette configuration permet à l'application d'envoyer automatiquement les fichiers (PDF/images) des utilisateurs vers **un dossier Google Drive centralisé** (compte de la plateforme), sans que l'utilisateur n'ait à manipuler de lien.
 
-## Prérequis
+## Important — quota de stockage (compte Google personnel gratuit)
 
-- Un compte Google (Google Drive) dédié à la plateforme.
-- Un projet Google Cloud (gratuit).
-- Les variables d'environnement serveur : `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_DRIVE_FOLDER_ID`.
+- L'**API Google Drive** est gratuite dans les quotas standards. Le **stockage** utilise le quota du compte Google propriétaire (15 Go gratuits sur un compte personnel).
+- Un **compte de service** ne possède pas de quota "Mon Drive" : sur un Drive personnel, l'upload par compte de service échoue avec `storageQuotaExceeded` (il faut un Shared Drive, généralement via Google Workspace). 
+- **Solution recommandée (gratuite, Drive personnel)** : utiliser **OAuth** pour que l'application agisse au nom du propriétaire du Drive (une autorisation unique → `refresh token`). Les fichiers sont alors stockés dans le Drive du propriétaire.
 
-> **Coût/quota** : l'API Google Drive est gratuite dans les quotas standards. Le stockage utilisé est celui du compte Google Drive propriétaire du dossier (15 Go gratuits sur un compte personnel). Un compte de service n'a pas de quota "Mon Drive" personnel : il faut lui partager un dossier du Drive propriétaire.
+## Option A — OAuth du propriétaire (recommandée)
 
-## 1. Créer un projet Google Cloud et activer l'API Drive
+Variables requises :
+- `GOOGLE_DRIVE_FOLDER_ID` : ID du dossier de destination (extrait de `https://drive.google.com/drive/folders/<ID>`)
+- `GOOGLE_CLIENT_ID` : ID client OAuth 2.0
+- `GOOGLE_CLIENT_SECRET` : secret client OAuth 2.0
+- `GOOGLE_REFRESH_TOKEN` : jeton d'actualisation obtenu après autorisation du propriétaire
 
-1. Ouvrir [Google Cloud Console](https://console.cloud.google.com/) et créer un projet (ex. `edushare-storage`).
-2. Aller dans **API et services → Bibliothèque**.
-3. Rechercher **Google Drive API** et cliquer **Activer**.
+Étapes :
+1. Créer/sélectionner un projet sur [Google Cloud Console](https://console.cloud.google.com/) et activer **Google Drive API**.
+2. Configurer l'écran de consentement OAuth si demandé (type Externe pour un compte personnel, ajouter votre compte en utilisateur de test si l'app est en mode test).
+3. Créer un identifiant **ID client OAuth 2.0** (type Application Web ou Bureau selon la méthode utilisée) et récupérer `client_id` / `client_secret`.
+4. Autoriser le scope Drive (`https://www.googleapis.com/auth/drive`) pour le compte propriétaire du dossier et obtenir un **refresh token** (autorisation unique). Vous pouvez utiliser [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/) en configurant vos propres identifiants et en ajoutant `https://developers.google.com/oauthplayground` comme URI de redirection autorisée du client.
+5. Créer un dossier dans Google Drive (compte propriétaire) et récupérer son ID.
+6. Définir les variables d'environnement côté serveur (local/Vercel) et redéployer.
 
-## 2. Créer un compte de service
+## Option B — Compte de service (Shared Drive / Workspace)
 
-1. **API et services → Identifiants → Créer des identifiants → Compte de service**.
-2. Nommer le compte (ex. `edushare-uploader`) et valider.
-3. Ouvrir le compte de service créé → onglet **Clés** → **Ajouter une clé → Créer une clé → JSON**.
-4. Télécharger le fichier JSON et le conserver en lieu sûr (ne jamais le committer).
+Variables requises :
+- `GOOGLE_DRIVE_FOLDER_ID`
+- `GOOGLE_SERVICE_ACCOUNT_JSON` (JSON brut ou base64)
 
-Le JSON contient notamment `client_email` (ex. `edushare-uploader@...iam.gserviceaccount.com`) et `private_key`.
+Fonctionne si le dossier cible est dans un **Shared Drive** et que le compte de service y a accès. Sur un Drive personnel gratuit, cette option ne permet pas d'uploader (pas de quota).
 
-## 3. Créer et partager le dossier Google Drive
+## Configuration des variables
 
-1. Dans le Google Drive du compte de la plateforme, créer un dossier (ex. `EduShare uploads`).
-2. Clic droit → **Partager** → ajouter l'adresse e-mail du compte de service (`client_email`) avec le rôle **Éditeur**.
-3. Récupérer l'**ID du dossier** depuis l'URL : `https://drive.google.com/drive/folders/<FOLDER_ID>`.
-
-## 4. Configurer les variables d'environnement
-
-### En local (`.env.local`)
-
+### Local (`.env.local`)
 ```env
-GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 GOOGLE_DRIVE_FOLDER_ID=<FOLDER_ID>
+GOOGLE_CLIENT_ID=<CLIENT_ID>
+GOOGLE_CLIENT_SECRET=<CLIENT_SECRET>
+GOOGLE_REFRESH_TOKEN=<REFRESH_TOKEN>
+# ou GOOGLE_SERVICE_ACCOUNT_JSON=...
 ```
 
-- `GOOGLE_SERVICE_ACCOUNT_JSON` : contenu JSON complet du compte de service (sur une seule ligne). Vous pouvez aussi fournir la même valeur encodée en **base64**.
-- `GOOGLE_DRIVE_FOLDER_ID` : l'identifiant du dossier partagé.
+### Vercel
+Project Settings → Environment Variables → ajouter les variables (serveur uniquement) → redéployer.
 
-### Sur Vercel
-
-Project Settings → Environment Variables :
-
-- `GOOGLE_SERVICE_ACCOUNT_JSON` = contenu du JSON (ou base64)
-- `GOOGLE_DRIVE_FOLDER_ID` = ID du dossier
-
-Redéployer après modification des variables.
+## Fonctionnement dans l'application
+- L'utilisateur sélectionne un fichier (PDF, JPG, PNG, WebP, max 20 Mo) et renseigne les métadonnées.
+- Le serveur téléverse le fichier dans le dossier Drive, rend le fichier accessible en lecture par lien, puis enregistre l'URL et les métadonnées en base.
+- L'utilisateur ne manipule pas de lien Google Drive.
+- La règle du donnant-donnant reste appliquée côté serveur.
 
 ## 5. Fonctionnement dans l'application
 

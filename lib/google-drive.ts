@@ -8,11 +8,9 @@ type UploadInput = {
   mimeType: string;
 };
 
-function getCredentials() {
+function getServiceAccountCredentials() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON manquant.");
-  }
+  if (!raw) return null;
 
   let json = raw.trim();
   // Supporte une valeur base64 ou JSON brut.
@@ -41,8 +39,40 @@ function getCredentials() {
   };
 }
 
+function getAuth() {
+  // Préférer OAuth (compte propriétaire du Drive) : fonctionne avec un Drive personnel gratuit.
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+    oauth2.setCredentials({ refresh_token: refreshToken });
+    return oauth2;
+  }
+
+  // Repli : compte de service (nécessite un Shared Drive/Workspace pour le quota).
+  const sa = getServiceAccountCredentials();
+  if (sa) {
+    return new google.auth.JWT({
+      email: sa.client_email,
+      key: sa.private_key,
+      scopes: ["https://www.googleapis.com/auth/drive"],
+    });
+  }
+
+  throw new Error(
+    "Configuration Google Drive manquante (OAuth: GOOGLE_CLIENT_ID/SECRET/REFRESH_TOKEN ou compte de service).",
+  );
+}
+
 export function isGoogleDriveConfigured() {
-  return Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON && process.env.GOOGLE_DRIVE_FOLDER_ID);
+  const hasOAuth = Boolean(
+    process.env.GOOGLE_CLIENT_ID &&
+      process.env.GOOGLE_CLIENT_SECRET &&
+      process.env.GOOGLE_REFRESH_TOKEN,
+  );
+  const hasServiceAccount = Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  return Boolean(process.env.GOOGLE_DRIVE_FOLDER_ID && (hasOAuth || hasServiceAccount));
 }
 
 export async function uploadToGoogleDrive({ buffer, filename, mimeType }: UploadInput) {
@@ -51,13 +81,7 @@ export async function uploadToGoogleDrive({ buffer, filename, mimeType }: Upload
     throw new Error("GOOGLE_DRIVE_FOLDER_ID manquant.");
   }
 
-  const credentials = getCredentials();
-  const auth = new google.auth.JWT({
-    email: credentials.client_email,
-    key: credentials.private_key,
-    scopes: ["https://www.googleapis.com/auth/drive"],
-  });
-
+  const auth = getAuth();
   const drive = google.drive({ version: "v3", auth });
 
   const created = await drive.files.create({
