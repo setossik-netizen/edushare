@@ -25,8 +25,26 @@ const REJECTION_REASONS = [
   { value: "DROIT_AUTEUR", label: "Droit d'auteur suspect" },
 ];
 
-export default async function AdminPage() {
+const MOD_MESSAGES: Record<string, { tone: "success" | "error"; text: string }> = {
+  approved: { tone: "success", text: "Document approuvé." },
+  rejected: { tone: "success", text: "Document rejeté." },
+  reason: { tone: "error", text: "Veuillez choisir un motif de rejet." },
+  self: { tone: "error", text: "Vous ne pouvez pas modérer votre propre document." },
+  stale: { tone: "error", text: "Ce document n'est plus en attente de modération." },
+  forbidden: { tone: "error", text: "Action non autorisée." },
+  invalid: { tone: "error", text: "Requête de modération invalide." },
+  error: { tone: "error", text: "Impossible d'appliquer la décision. Réessayez." },
+};
+
+type AdminSearchParams = { mod?: string };
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<AdminSearchParams>;
+}) {
   await connection();
+  const sp = await searchParams;
 
   if (!isSupabaseConfigured()) {
     return (
@@ -38,6 +56,7 @@ export default async function AdminPage() {
 
   await requireStaff("/admin");
   const [pending, reports] = await Promise.all([getPendingResources(), getReports()]);
+  const mod = sp.mod ? MOD_MESSAGES[sp.mod] : null;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6">
@@ -52,6 +71,12 @@ export default async function AdminPage() {
           </p>
         </div>
       </div>
+
+      {mod ? (
+        <FormAlert tone={mod.tone} className="mt-6">
+          {mod.text}
+        </FormAlert>
+      ) : null}
 
       {pending.items.length === 0 ? (
         <Card className="mt-8 border-dashed bg-muted/20">

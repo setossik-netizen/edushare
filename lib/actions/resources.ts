@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSessionUser } from "@/lib/auth";
@@ -174,17 +175,23 @@ export async function createResourceAction(
 }
 
 export async function moderateResourceAction(formData: FormData): Promise<void> {
-  if (!isSupabaseConfigured()) return;
+  if (!isSupabaseConfigured()) redirect("/admin?mod=error");
 
   const user = await getSessionUser();
-  if (!user || (user.role !== "moderator" && user.role !== "admin")) return;
+  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
+    redirect("/admin?mod=forbidden");
+  }
 
   const resourceId = String(formData.get("resourceId") ?? "");
   const decision = String(formData.get("decision") ?? "");
   const reason = String(formData.get("reason") ?? "").trim() || null;
 
-  if (!resourceId || (decision !== "APPROVE" && decision !== "REJECT")) return;
-  if (decision === "REJECT" && !reason) return;
+  if (!resourceId || (decision !== "APPROVE" && decision !== "REJECT")) {
+    redirect("/admin?mod=invalid");
+  }
+  if (decision === "REJECT" && !reason) {
+    redirect("/admin?mod=reason");
+  }
 
   const supabase = await createClient();
 
@@ -194,12 +201,14 @@ export async function moderateResourceAction(formData: FormData): Promise<void> 
     .eq("id", resourceId)
     .maybeSingle();
 
-  if (!resource || resource.status !== "PENDING") return;
+  if (!resource || resource.status !== "PENDING") {
+    redirect("/admin?mod=stale");
+  }
 
   // Un modérateur ne peut pas modérer sa propre ressource.
   if (resource.author_id === user.id) {
     logError("moderate", "Self-moderation attempted");
-    return;
+    redirect("/admin?mod=self");
   }
 
   const newStatus = decision === "APPROVE" ? "APPROVED" : "REJECTED";
@@ -217,7 +226,7 @@ export async function moderateResourceAction(formData: FormData): Promise<void> 
 
   if (error) {
     logError("moderate", error.message);
-    return;
+    redirect("/admin?mod=error");
   }
 
   await supabase.from("moderation_logs").insert({
@@ -263,6 +272,13 @@ export async function moderateResourceAction(formData: FormData): Promise<void> 
       }
     }
   }
+
+  revalidatePath("/admin");
+  revalidatePath("/explorer");
+  revalidatePath("/");
+  revalidatePath("/ressource", "layout");
+
+  redirect(`/admin?mod=${decision === "APPROVE" ? "approved" : "rejected"}`);
 }
 
 export async function toggleFavoriteAction(formData: FormData): Promise<void> {
