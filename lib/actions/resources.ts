@@ -205,12 +205,6 @@ export async function moderateResourceAction(formData: FormData): Promise<void> 
     redirect("/admin?mod=stale");
   }
 
-  // Un modérateur ne peut pas modérer sa propre ressource.
-  if (resource.author_id === user.id) {
-    logError("moderate", "Self-moderation attempted");
-    redirect("/admin?mod=self");
-  }
-
   const newStatus = decision === "APPROVE" ? "APPROVED" : "REJECTED";
   const rejectionReason = decision === "REJECT" ? reason : null;
 

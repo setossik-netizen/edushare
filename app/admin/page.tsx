@@ -30,7 +30,8 @@ const MOD_MESSAGES: Record<string, { tone: "success" | "error"; text: string }> 
   approved: { tone: "success", text: "Document approuvé." },
   rejected: { tone: "success", text: "Document rejeté." },
   reason: { tone: "error", text: "Veuillez choisir un motif de rejet." },
-  self: { tone: "error", text: "Vous ne pouvez pas modérer votre propre document." },
+  // self-moderation autorisée pour les admins/modérateurs
+
   stale: { tone: "error", text: "Ce document n'est plus en attente de modération." },
   forbidden: { tone: "error", text: "Action non autorisée." },
   invalid: { tone: "error", text: "Requête de modération invalide." },
