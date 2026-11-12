@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { ShieldCheck } from "lucide-react";
 
+import { FormAlert } from "@/components/auth/form-alert";
 import { SetupNotice } from "@/components/auth/setup-notice";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button";
